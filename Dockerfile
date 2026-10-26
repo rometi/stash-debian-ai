@@ -1,11 +1,11 @@
-# Stash sur Debian : équivalent de l'image officielle stashapp/stash (Alpine),
-# mais avec glibc pour que PyTorch (requis par Haven VLM Connector) s'installe.
-# Mêmes chemins (/root/.stash), même utilisateur (root), même port (9999).
+# Stash on Debian: equivalent to the official stashapp/stash image (Alpine),
+# but with glibc so that PyTorch (required by Haven VLM Connector) can be installed.
+# Same paths (/root/.stash), same user (root), same port (9999).
 FROM debian:trixie-slim
 
 ARG STASH_VERSION
 
-# Paquets équivalents à l'image officielle, plus git (exigé par PythonDepManager)
+# Same packages as the official image, plus git (required by PythonDepManager)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates curl git tzdata ffmpeg libvips-tools \
@@ -13,7 +13,7 @@ RUN apt-get update \
     && pip install --break-system-packages --no-cache-dir mechanicalsoup cloudscraper stashapp-tools \
     && rm -rf /var/lib/apt/lists/*
 
-# Binaire officiel de Stash, vérifié avec la somme de contrôle publiée
+# Official Stash binary, verified against the published checksum
 RUN test -n "${STASH_VERSION}" \
     && cd /tmp \
     && curl -fsSLO "https://github.com/stashapp/stash/releases/download/v${STASH_VERSION}/stash-linux" \
@@ -23,11 +23,11 @@ RUN test -n "${STASH_VERSION}" \
     && rm -f stash-linux CHECKSUMS_SHA1
 
 ENV STASH_CONFIG_FILE=/root/.stash/config.yml
-# PyTorch en version CPU (sans les bibliothèques NVIDIA de plusieurs Go)
+# CPU-only PyTorch (avoids several GB of NVIDIA libraries)
 ENV PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu
 
 LABEL org.opencontainers.image.title="stash-debian-ai" \
-    org.opencontainers.image.description="stashapp/stash sur Debian (glibc), compatible PyTorch pour les plugins IA" \
+    org.opencontainers.image.description="stashapp/stash on Debian (glibc), PyTorch-compatible for AI plugins" \
     org.opencontainers.image.version="${STASH_VERSION}" \
     org.opencontainers.image.licenses="AGPL-3.0"
 

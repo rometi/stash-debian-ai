@@ -1,7 +1,7 @@
-# Construit et publie l'image sur GHCR :
-# - chaque jour, seulement si une nouvelle version de Stash est sortie ;
-# - le 1er de chaque mois, pour intégrer les mises à jour de sécurité Debian ;
-# - à chaque modification du Dockerfile, ou à la demande (bouton "Run workflow").
+# Builds and publishes the image to GHCR:
+# - daily, only when a new Stash release is out;
+# - on the 1st of each month, to pick up Debian security updates;
+# - on every push to main, or on demand ("Run workflow" button).
 name: build
 
 on:
@@ -15,31 +15,35 @@ permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: build
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Dernière version de Stash
+      - name: Latest Stash release
         id: version
         run: |
           tag=$(curl -fsSL https://api.github.com/repos/stashapp/stash/releases/latest | jq -re .tag_name)
           echo "stash=${tag#v}" >> "$GITHUB_OUTPUT"
           echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
-      - name: Connexion à GHCR
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Faut-il construire ?
+      - name: Check whether a build is needed
         id: check
         run: |
           if [ "${{ github.event_name }}" != "schedule" ] || [ "$(date -u +%d)" = "01" ]; then
             echo "build=true" >> "$GITHUB_OUTPUT"
           elif docker manifest inspect "${{ steps.version.outputs.image }}:v${{ steps.version.outputs.stash }}" > /dev/null 2>&1; then
-            echo "Image v${{ steps.version.outputs.stash }} déjà publiée, rien à faire."
+            echo "Image v${{ steps.version.outputs.stash }} already published, nothing to do."
             echo "build=false" >> "$GITHUB_OUTPUT"
           else
             echo "build=true" >> "$GITHUB_OUTPUT"
@@ -51,7 +55,7 @@ jobs:
       - uses: docker/setup-buildx-action@v3
         if: steps.check.outputs.build == 'true'
 
-      - name: Construction et publication
+      - name: Build and push
         if: steps.check.outputs.build == 'true'
         uses: docker/build-push-action@v6
         with:
